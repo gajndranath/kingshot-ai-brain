@@ -37,18 +37,24 @@ class AIController:
         # Langchain Fallback Router: Gemini -> Groq -> Claude
         self.resilient_llm = self.gemini.with_fallbacks([self.groq_llama, self.claude])
 
-    async def translate_text(self, text: str) -> dict:
+    async def translate_text(self, text: str, target_language: str) -> dict:
         """
-        Uses Gemini to translate text to English.
+        Uses Groq Llama-3 for lightning-fast chat translation.
         """
-        is_english = bool(re.match(r'^[a-zA-Z\s.,!\'?]+$', text))
-        
-        if not is_english:
-            return {
-                "translatedText": "[Translated by Gemini]: This is an AI translation of your message."
-            }
-
-        return {"translatedText": None}
+        try:
+            prompt = f"Translate the following text into {target_language}. Return ONLY the translated text, nothing else. Text: {text}"
+            
+            # Using Groq Llama for extreme speed (milliseconds) to prevent Discord UI lag
+            response = await self.groq_llama.ainvoke(prompt)
+            
+            return {"status": "success", "translation": response.content.strip()}
+        except Exception as e:
+            # Fallback to the resilient chain if Groq fails
+            try:
+                response = await self.resilient_llm.ainvoke(f"Translate to {target_language}: {text}")
+                return {"status": "success", "translation": response.content.strip()}
+            except:
+                return {"status": "error", "message": f"Translation Failed: {str(e)}"}
 
     async def generate_coaching_advice(self, question: str, stats: dict = None) -> str:
         """

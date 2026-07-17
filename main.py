@@ -9,6 +9,7 @@ ai_controller = AIController()
 
 class TranslationRequest(BaseModel):
     text: str
+    target_language: str
 
 class CoachingRequest(BaseModel):
     question: str
@@ -31,7 +32,7 @@ def read_root():
 @app.post("/api/translate")
 async def translate_text(req: TranslationRequest):
     try:
-        result = await ai_controller.translate_text(req.text)
+        result = await ai_controller.translate_text(req.text, req.target_language)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
