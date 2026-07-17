@@ -1,11 +1,22 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi.security.api_key import APIKeyHeader
+from starlette.status import HTTP_403_FORBIDDEN
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
+import os
 from agent import AIController
 
 app = FastAPI(title="Kingshot AI Brain", version="1.0.0")
 ai_controller = AIController()
+
+API_KEY = os.getenv("INTERNAL_API_KEY", "default-dev-key")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header == API_KEY:
+        return api_key_header
+    raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Could not validate credentials")
 
 class TranslationRequest(BaseModel):
     text: str
@@ -30,7 +41,7 @@ def read_root():
     return {"status": "AI Brain is running online"}
 
 @app.post("/api/translate")
-async def translate_text(req: TranslationRequest):
+async def translate_text(req: TranslationRequest, api_key: str = Depends(get_api_key)):
     try:
         result = await ai_controller.translate_text(req.text, req.target_language)
         return result
@@ -38,7 +49,7 @@ async def translate_text(req: TranslationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/coach")
-async def coach_player(req: CoachingRequest):
+async def coach_player(req: CoachingRequest, api_key: str = Depends(get_api_key)):
     try:
         response = await ai_controller.generate_coaching_advice(req.question, req.player_stats)
         return {"advice": response}
@@ -46,7 +57,7 @@ async def coach_player(req: CoachingRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/analyze-battle")
-async def analyze_battle(req: BattleAnalysisRequest):
+async def analyze_battle(req: BattleAnalysisRequest, api_key: str = Depends(get_api_key)):
     try:
         analysis = await ai_controller.analyze_battle_screenshot(req.image_url)
         return {"analysis": analysis}
@@ -54,7 +65,7 @@ async def analyze_battle(req: BattleAnalysisRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/scan-nap")
-async def scan_nap(req: ScanNapRequest):
+async def scan_nap(req: ScanNapRequest, api_key: str = Depends(get_api_key)):
     try:
         result = await ai_controller.scan_nap_violation(req.image_url, req.safe_tags)
         return result
@@ -62,7 +73,7 @@ async def scan_nap(req: ScanNapRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/scan-donation")
-async def scan_donation(req: ScanDonationRequest):
+async def scan_donation(req: ScanDonationRequest, api_key: str = Depends(get_api_key)):
     try:
         result = await ai_controller.scan_tech_donation(req.image_url)
         return result

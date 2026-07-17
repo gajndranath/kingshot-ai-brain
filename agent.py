@@ -184,8 +184,13 @@ class AIController:
         then feeds the raw text to Gemini Flash to drastically save Vision API tokens.
         """
         try:
-            # 1. Download Image
+            MAX_FILE_SIZE = 5 * 1024 * 1024 # 5 MB limit
+            # 1. Download Image securely
             async with httpx.AsyncClient() as client:
+                head_resp = await client.head(image_url)
+                if int(head_resp.headers.get("Content-Length", 0)) > MAX_FILE_SIZE:
+                    return "❌ **AI Processing Error:** Image is too large (Max 5MB). Please compress it."
+                
                 response = await client.get(image_url)
                 response.raise_for_status()
                 image_bytes = response.content
